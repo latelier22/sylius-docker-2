@@ -1,0 +1,106 @@
+services:
+  php:
+    container_name: php
+    build:
+      context: .
+      target: sylius_php_dev
+    depends_on:
+      - migrations
+    environment:
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - APP_SECRET=EDITME
+      - DATABASE_URL=mysql://root:${MYSQL_PASSWORD:-nopassword}@mysql/sylius
+      - MAILER_DSN=smtp://mailhog:1025
+      - PHP_DATE_TIMEZONE=${PHP_DATE_TIMEZONE:-UTC}
+    volumes:
+      - .:/srv/sylius:rw,cached
+      - ./public:/srv/sylius/public:rw,delegated
+      - public-media:/srv/sylius/public/media:rw
+      - ./src:/srv/sylius/src:rw
+
+  migrations:
+    container_name: migrations
+    build:
+      context: .
+      target: sylius_migrations_dev
+    depends_on:
+      - mysql
+    environment:
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - APP_SECRET=EDITME
+      - DATABASE_URL=mysql://root:${MYSQL_PASSWORD:-nopassword}@mysql/sylius
+      - LOAD_FIXTURES=1
+      - PHP_DATE_TIMEZONE=${PHP_DATE_TIMEZONE:-UTC}
+
+  mysql:
+    container_name: mysql
+    image: mysql:5.7
+    platform: linux/amd64
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-nopassword}
+      - MYSQL_DATABASE=sylius
+      - MYSQL_USER=sylius
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-nopassword}
+    volumes:
+      - mysql-data:/var/lib/mysql:rw
+    ports:
+      - "${MYSQL_PORT:-3327}:3306"
+    cap_add:
+      - SYS_NICE
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_ARBITRARY=1
+    ports:
+      - "8099:80"
+    links:
+      - mysql
+
+
+
+
+  node:
+    container_name: node
+    build:
+      context: .
+      target: sylius_node
+    command: ["yarn", "watch"]
+    depends_on:
+      - php
+    environment:
+      - GULP_ENV=dev
+      - PHP_HOST=php
+      - PHP_PORT=9000
+    volumes:
+      - .:/srv/sylius:rw,cached
+      - ./public:/srv/sylius/public:rw,delegated
+
+  nginx:
+    container_name: nginx
+    build:
+      context: .
+      target: sylius_nginx
+    depends_on:
+      - php
+      - node
+    volumes:
+      - ./public:/srv/sylius/public:ro
+    ports:
+      - "${HTTP_PORT:-82}:80"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    environment:
+      - MH_STORAGE=maildir
+    ports:
+      - "${MAILHOG_PORT:-8025}:8025"
+
+volumes:
+  mysql-data:
+  public-media:
