@@ -1,6 +1,6 @@
 services:
   php:
-    container_name: php
+    container_name: php-sylius
     build:
       context: .
       target: sylius_php_dev
@@ -52,7 +52,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
+    container_name: phpmyadmin2
     environment:
       - PMA_HOST=mysql
       - PMA_PORT=3306
